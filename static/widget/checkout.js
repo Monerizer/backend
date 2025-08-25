@@ -148,10 +148,11 @@
   function setFallbackQRFromAddress(addr) { if (!addr) return; const url = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(addr)}`; setQR(url); }
   function showDepositReceivedBadge() {
     const box = $("qrBox"); if (!box) return;
-    box.style.background = "transparent"; box.style.padding = "0";
+    box.style.background = "transparent"; box.style.padding = "0"; box.style.boxShadow = "none";
     box.innerHTML = `
       <div class="mx-gif-box">
-        <img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzE3M2hzMG10emV3MjFpemVpcWVxbmo4NzM1ZDZ5cXNjM2VuYmh2ZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/svpb0hF4Fz1HBWPCqB/giphy.gif" alt="processing">
+        <img 
+<img src="./spong.gif" alt="processing">
       </div>
       <div class="mx-waiting-text">Wait until we monerize your assets <span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
     `;
@@ -330,6 +331,7 @@
     if(sym==="USDT"&&net==="TRX") return `https://tronscan.org/#/transaction/${H}`;
     if((sym==="USDT"||sym==="USDC")&&net==="ETH") return `https://etherscan.io/tx/${H}`;
     if(sym==="LTC") return `https://litecoinspace.org/tx/${H}`;
+    if(sym==="XMR"||net==="XMR") return `https://xmrchain.net/tx/${H}`;
     return ""; }
 
   // FIX: never show [object Object]; show "Pending…" until we have a string txid
@@ -358,14 +360,38 @@
     const outNet  = firstTruthy(req.out_network,l2.network_out,raw.out_network);
     const inAmt=firstTruthy(l1.amount_in,p1.amount_in,p1.expectedAmountFrom,p1.amountFrom,p1.amount_from,req.amount);
     const dep1=firstTruthy(l1.deposit_address,l1.order?.depositAddress,l1.order?.payinAddress,p1.payinAddress,p1.depositAddress) || extractDepositAddress(raw);
-    const hin1=firstTruthy(p1.payinHash,p1.inputTxid,p1.inputTxHash,p1.hashIn,p1.txHashIn,p1.depositHash,p1.depositTxId,l1.order?.payinHash);
-    const hout1=firstTruthy(p1.payoutHash,p1.outputTxid,p1.txHashOut,p1.hashOut,p1.payout_txid,l1.order?.payoutHash,l1.hash_out);
+const hin1 = firstTruthy(
+  p1.payinHash,p1.inputTxid,p1.inputTxHash,p1.hashIn,p1.txHashIn,p1.depositHash,p1.depositTxId,l1.order?.payinHash,
+  p1.inTx,p1.txIn,p1.txidIn,p1["in_tx"],p1.tx_hash_in,
+  l1.inTx,l1.txIn,l1.txidIn,l1["in_tx"],l1.tx_hash_in,
+  p1.deposit?.tx_hash,p1.deposit?.txId,p1.deposit?.txid,
+  l1.deposit?.tx_hash,l1.order?.deposit?.txId,l1.order?.deposit?.tx_hash
+);
+const hout1 = firstTruthy(
+  p1.payoutHash,p1.outputTxid,p1.txHashOut,p1.hashOut,p1.payout_txid,l1.order?.payoutHash,l1.hash_out,
+  p1.outTx,p1.txOut,p1.txidOut,p1["out_tx"],p1.tx_hash_out,
+  l1.outTx,l1.txOut,l1.txidOut,l1["out_tx"],l1.tx_hash_out,
+  p1.withdrawal?.tx_hash,p1.withdrawal?.txId,p1.withdrawal?.txid,
+  l1.withdrawal?.tx_hash,l1.order?.withdrawal?.txId,l1.order?.withdrawal?.tx_hash
+);
     const xmrInAmt=firstTruthy(l2.order?.fromAmount,l2.order?.amountFrom,p2.amount_from,p2.fromAmount);
     const dep2=firstTruthy(l2.order?.depositAddress,l2.order?.payinAddress,p2.payinAddress,p2.depositAddress);
-    const hin2=firstTruthy(raw.last_sent_txid,p2.inputTxid,p2.inputTxHash);
+const hin2 = firstTruthy(
+  raw.last_sent_txid,p2.inputTxid,p2.inputTxHash,
+  p2.inTx,p2.txIn,p2.txidIn,p2["in_tx"],p2.tx_hash_in,
+  l2.inTx,l2.txIn,l2.txidIn,l2["in_tx"],l2.tx_hash_in,
+  p2.deposit?.tx_hash,p2.deposit?.txId,p2.deposit?.txid,
+  l2.deposit?.tx_hash,l2.order?.deposit?.txId,l2.order?.deposit?.tx_hash
+);
     const expectOut=firstTruthy(l2.order?.toAmount,l2.order?.amountTo,p2.amount_to,p2.toAmount,p2.amountTo);
     const userAddr=firstTruthy(req.payout_address,p2.payoutAddress,l2.order?.payoutAddress,raw.payout_address);
-    const hout2=firstTruthy(p2.payoutHash,p2.outputTxid,p2.hashOut,p2.txHashOut,p2.txId,p2.transactionHash,p2.hash,l2.hash_out);
+const hout2 = firstTruthy(
+  p2.payoutHash,p2.outputTxid,p2.hashOut,p2.txHashOut,p2.txId,p2.transactionHash,p2.hash,l2.hash_out,
+  p2.outTx,p2.txOut,p2.txidOut,p2["out_tx"],p2.tx_hash_out,
+  l2.outTx,l2.txOut,l2.txidOut,l2["out_tx"],l2.tx_hash_out,
+  p2.withdrawal?.tx_hash,p2.withdrawal?.txId,p2.withdrawal?.txid,
+  l2.withdrawal?.tx_hash,l2.order?.withdrawal?.txId,l2.order?.withdrawal?.tx_hash
+);
     const leg1Done = !!pickHash(hout1) || /finished|success|completed/.test(String(p1.status||p1.state||p1.stage||"").toLowerCase());
     const leg2Pending = !leg1Done ? `<div class="pending">Status: awaiting Leg 1 to finish…</div>` : "";
     return `
